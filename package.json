@@ -13,6 +13,8 @@
   "author": "_beho <sperka@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "koa": "^2.4.12"
+    "koa": "^2.4.12",
+    "@koa/router": "^12.0.0",
+    "koa-body": "6.0.1"
   }
 }
