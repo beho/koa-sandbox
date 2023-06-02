@@ -1,0 +1,18 @@
+{
+  "name": "koa-sandbox",
+  "version": "0.0.1",
+  "description": "Koa sandbox",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "koa",
+    "sandbox"
+  ],
+  "author": "_beho <sperka@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "koa": "^2.4.12"
+  }
+}
