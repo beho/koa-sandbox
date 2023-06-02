@@ -8,6 +8,20 @@ const crypto = require('crypto');
 const app = new Koa();
 const router = new Router();
 
+// FIX: no tests are written
+// - auth
+// - state management
+// - endpoint access
+
+// FIX: TLS termination on proxy or configure TLS for node
+
+// FIX: missing healthcheck
+
+// FIX: appropriate logging
+
+// FIX: emit metrics
+
+
 // Authentication/authorization
 
 // Never store plaintext passwords. Use some appropriate hashing algorithm.
@@ -21,6 +35,7 @@ const users = {
     user: { username: 'user', role: 'user', password: 'secret' },
 };
 
+// TODO: refactor - wrap all auth/authorization into object or use some package
 // change this implementation for storage methods
 const userForCredentials = function(username, password) {
     const user = users[username];
@@ -41,11 +56,15 @@ const authenticate = function(username, token) {
 // State management
 const stateFilePath = './state.json';
 
+// TODO refactor - wrap state management into object
 const defaultState = {
     numberOfCalls: 0,
     lastMessage: null
 };
 
+// file is not locked when app is running so there is space for race conditions
+// or tampering with state
+// it could also be used to ensure that only single instance of app is runnning
 const initState = function() {
     try
     {
@@ -61,18 +80,19 @@ const updateState = function(message) {
     state.numberOfCalls += 1;
     state.lastMessage = message;
 
+    // not sure if file is fsynced to file system
     fs.writeFileSync(stateFilePath, JSON.stringify(state));
 };
 
 // global state
 const state  = initState();
 
-// Authorization middleware
+// Authentication middleware
 app.use(async (ctx, next) => {
     const auth = ctx.request.headers['authorization'];
     
     if(auth != null) {
-        // Parsing might need more testing depending on consumers but this should
+        // Parsing definitely needs testing but this should
         // be compliant with https://datatracker.ietf.org/doc/html/rfc7617
         const [scheme, digest] = auth.split(/\s/);
 
@@ -85,18 +105,24 @@ app.use(async (ctx, next) => {
     await next();    
 });
 
-router.post('/login', koaBody(), (ctx, _next) => {
+router.post('/login', koaBody(), async (ctx, _next) => {
     const { username, password } = ctx.request.body;
 
-    console.log(username, password);
-
     const user = userForCredentials(username, password);
-    if(user == null) {
+    if (user == null) {
         ctx.status = 401;
+
+        console.warn('Failed login attempt');
         return;
     }
 
+    // This is stateful auth. So it requires accessing user storage on each request.
+    // Stateless auth might be more appropriate depending on context.
+    // User can have only single token so authenticating
+    // from multiple devices works but logging out of one causes unauthorized
+    // access on the rest of devices. Again, this might or might not be a problem.
     if (user.token == null) {
+        // not sure about appropriate token length
         user.token = crypto.randomBytes(8).toString('hex');
     }
 
@@ -106,17 +132,22 @@ router.post('/login', koaBody(), (ctx, _next) => {
         token: digest
     };
     ctx.status = 200;
-    return;
+
+    console.log('Authenticated user ' + username);
 });
 
-router.post('/logout', koaBody(), (ctx, _next) => {
+router.post('/logout', koaBody(), async (ctx, _next) => {
     if (!ctx.user) {
+        // handling of unauthorized access should be extracted and reused
+        // logging of unathorized acess is missing in all endpoints
         ctx.status = 403;
         return;
     }
     
     ctx.user.token = null;
     ctx.status = 200;
+
+    console.log('User ' + ctx.user.username + 'logged out');
 });
 
 router.post('/message', koaBody(), async (ctx, _next) => {
